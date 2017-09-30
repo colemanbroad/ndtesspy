@@ -1,0 +1,9 @@
+.DS_Store
+.cache/
+Carine_Ilastik.ilp
+__pycache__/
+microtubule_foams.sublime-project
+microtubule_foams.sublime-workspace
+notes.md
+results/
+test_resources/
