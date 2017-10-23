@@ -1,16 +1,21 @@
 import numpy as np
 import pytest
-import voronoi_microtubule_asters as vma
-from label_tools import get_coords_and_labels, detect_labimg_boundaries
+from . import tesselations as tess
+from .label_tools import get_coords_and_labels, detect_labimg_boundaries
+from pathlib import Path
+pkgdir = Path(__file__).absolute().parent.parent
 
 @pytest.fixture(scope="module")
 def load_state():
     import skimage.io as io
     from scipy.ndimage import label
     from skimage.filters import gaussian
-    img = io.imread('test_resources/microtubule foams.jpg')
-    pimg = np.load('test_resources/microtubule foams_Probabilities Stage 2.npy')
-    vorimg = io.imread('test_resources/vorimg.tif')
+    img = io.imread(pkgdir / 'test_resources/microtubule foams.jpg')
+    print(img.shape)
+    pimg = np.load(pkgdir / 'test_resources/microtubule foams_Probabilities Stage 2.npy')
+    print(pimg.shape)
+    vorimg = io.imread(pkgdir / 'test_resources/vorimg.tif', plugin='tifffile')
+    print(vorimg.shape)
     pimg = pimg.astype('float16')
     distimg = pimg[:,:,1].copy().astype('float32')
     distimg = gaussian(distimg, 30)
@@ -51,12 +56,12 @@ def test_buildHeapqCoords(load_state):
     coords = load_state['coords']
     labels = load_state['labels']
     distimg = load_state['distimg']
-    heap, vorimg = vma.initialize_heapq_coords(coords, labels, distimg)
+    heap, vorimg = tess.initialize_heapq_coords(coords, labels, distimg)
 
 def test_scipyVoronoi(load_state):
     coords = load_state['coords']
     img    = load_state['img']
-    fig, vor = vma.show_basic_voronoi_img(coords, img)
+    fig, vor = tess.show_basic_voronoi_img(coords, img)
 
 def test_labimg_boundaries(load_state):
     lab = load_state['lab']
@@ -75,9 +80,11 @@ def test_labimg_boundaries(load_state):
 def test_heapq_and_vorimg(load_state):
     lab    = load_state['lab']
     distimg = load_state['distimg']
-    heap = vma.initialize_heapq(lab, distimg)
-    assert len(heap) > 30000
-    vorimg = vma.build_vorimg(heap, lab, distimg)
+    assert np.alltrue(distimg>=0)
+    heap = tess.initialize_heapq(lab, distimg)
+    # assert len(heap) > 30000
+    print(len(heap))
+    vorimg = tess.build_vorimg(heap, lab, distimg)
     mask = vorimg==0
     assert mask.sum()==0
     assert np.alltrue(np.unique(vorimg) == np.unique(lab)[1:])
@@ -85,7 +92,12 @@ def test_heapq_and_vorimg(load_state):
 
 @pytest.mark.slow
 def test_tessellate_labimg(load_state):
-    vorimg = vma.tessellate_labimg(load_state['lab']) #, load_state['distimg'])
-    return vorimg
+    lab = load_state['lab']
+    distimg = load_state['distimg']
+    vorimg = tess.tessellate_labimg(lab) #, load_state['distimg'])
+    assert np.alltrue(lab[lab>0] == vorimg[lab>0])
+    vorimg2 = tess.tessellate_labimg(lab, distimg) #, load_state['distimg'])
+    assert np.alltrue(lab[lab>0] == vorimg2[lab>0])
+    return vorimg2
 
 
